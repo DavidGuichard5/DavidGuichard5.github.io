@@ -6,8 +6,8 @@
 <title>2022 cosas para el 2022… y para toda la vida</title>
 <link rel="preconnect" href="https://googleapis.com">
 <link href="https://googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Space+Grotesk:wght@400;500;600;700&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-<!-- Conexión estable con Supabase -->
-<script src="https://unpkg.com"></script>
+<!-- Biblioteca oficial de Supabase -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --bg:#0C0C0E; --bg-2:#151519; --bg-3:#1F1F25; --bg-4:#292933;
@@ -82,9 +82,11 @@ body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',sans
   </div>
 
 <script>
-const SUPABASE_URL = "https://supabase.co";
+const SUPABASE_URL = "https://vqxajkvkdmvelwotmuas.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxeGFqa3ZrZG12ZWx3b3RtdWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MjEzODEsImV4cCI6MjEwMjI5NzM4MX0.BWUjYPgO4tU6gXNeVGSYFelvfqoPFiqS5VOLGrsZFmg";
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// CORRECCIÓN: Inicialización con 'Supabase' en mayúscula para navegadores planos
+const supabaseClient = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let usuarioActivo = null;
 
 document.getElementById('btn-login').addEventListener('click', async () => {
@@ -92,23 +94,28 @@ document.getElementById('btn-login').addEventListener('click', async () => {
   const password = document.getElementById('auth-password').value;
   const btn = document.getElementById('btn-login');
   
-  if(!email || !password) return alert("Completa los campos.");
+  if(!email || !password) return alert("Por favor, completa todos los campos.");
   btn.innerText = "Verificando...";
   
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) {
-    alert("Error: " + error.message);
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) {
+      alert("Error al ingresar: " + error.message);
+      btn.innerText = "Iniciar Sesión";
+    } else {
+      usuarioActivo = data.user;
+      document.getElementById('auth-container').style.display = 'none';
+      document.getElementById('app-container').style.display = 'block';
+      cargarProgresoNube();
+    }
+  } catch(e) {
+    alert("Error crítico en la conexión: " + e.message);
     btn.innerText = "Iniciar Sesión";
-  } else {
-    usuarioActivo = data.user;
-    document.getElementById('auth-container').style.display = 'none';
-    document.getElementById('app-container').style.display = 'block';
-    cargarProgresoNube();
   }
 });
 
 document.getElementById('btn-logout').addEventListener('click', async () => {
-  await supabase.auth.signOut();
+  await supabaseClient.auth.signOut();
   location.reload();
 });
 
@@ -128,7 +135,7 @@ async function actualizarItem(num) {
   const label = card.querySelector('.save-status');
 
   label.innerText = "Guardando...";
-  const { error } = await supabase.from('progreso_propositos').upsert({
+  const { error } = await supabaseClient.from('progreso_propositos').upsert({
     user_id: usuarioActivo.id, proposito_num: num, cumplido, nota, calificacion, fecha_evidencia: new Date()
   }, { onConflict: 'user_id,proposito_num' });
 
@@ -137,7 +144,7 @@ async function actualizarItem(num) {
 }
 
 async function cargarProgresoNube() {
-  const { data } = await supabase.from('progreso_propositos').select('*').eq('user_id', usuarioActivo.id);
+  const { data } = await supabaseClient.from('progreso_propositos').select('*').eq('user_id', usuarioActivo.id);
   if(data) {
     data.forEach(item => {
       const card = document.querySelector(`.item-card[data-id="${item.proposito_num}"]`);
